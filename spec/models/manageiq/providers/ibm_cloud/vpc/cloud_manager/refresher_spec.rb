@@ -9,20 +9,24 @@ describe ManageIQ::Providers::IbmCloud::VPC::CloudManager::Refresher, :vcr => {:
   end
 
   it "tests the refresh" do
-    2.times do
-      # Storing ems as a variable and passing it directly reduces the complexity of the runtime. Which appears to increase runtime performance.
-      mgmt = ems
-      mgmt.refresh
-      mgmt.reload
+    timings = Benchmark.measure do
+      20.times do
+        # Storing ems as a variable and passing it directly reduces the complexity of the runtime. Which appears to increase runtime performance.
+        mgmt = ems
+        mgmt.refresh
+        mgmt.reload
 
-      assert_ems_counts(mgmt)
-      assert_specific_vm(mgmt)
-      assert_specific_resource_group(mgmt, '29b1dd25de2d40b5ae5bd5f719f30db8', 'camc-test')
-      assert_specific_security_group(mgmt, 'r014-e4be0c69-6df6-4464-a9bc-384e4179ea1b', 'backup-deglazed-bagful-deflation')
-      assert_specific_cloud_volume_type(mgmt, 'general-purpose', 'tiered')
-      assert_specific_cloud_subnet(mgmt, '0757-ef523a2f-5356-42ff-8a78-9325509465b9', 'r014-0fa2acc6-2a41-4f2b-9c89-bcea07cdcbc3', 'us-east-1')
-      assert_vm_labels(mgmt, '0777_f73e8687-3813-465f-99df-ba6e4ee8f289', 4)
+        assert_ems_counts(mgmt)
+        assert_specific_vm(mgmt)
+        assert_specific_resource_group(mgmt, '29b1dd25de2d40b5ae5bd5f719f30db8', 'camc-test')
+        assert_specific_security_group(mgmt, 'r014-e4be0c69-6df6-4464-a9bc-384e4179ea1b', 'backup-deglazed-bagful-deflation')
+        assert_specific_cloud_volume_type(mgmt, 'general-purpose', 'tiered')
+        assert_specific_cloud_subnet(mgmt, '0757-ef523a2f-5356-42ff-8a78-9325509465b9', 'r014-0fa2acc6-2a41-4f2b-9c89-bcea07cdcbc3', 'us-east-1')
+        assert_vm_labels(mgmt, '0777_f73e8687-3813-465f-99df-ba6e4ee8f289', 4)
+      end
     end
+
+    puts "Refresh: Average [#{timings.total / 20}] #{timings}"
   end
 
   # Test that the refresh has persisted the same number of items as expected from the Cloud.
