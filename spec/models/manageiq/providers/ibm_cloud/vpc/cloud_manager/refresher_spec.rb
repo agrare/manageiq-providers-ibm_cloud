@@ -11,18 +11,16 @@ describe ManageIQ::Providers::IbmCloud::VPC::CloudManager::Refresher, :vcr => {:
   it "tests the refresh" do
     timings = Benchmark.measure do
       20.times do
-        # Storing ems as a variable and passing it directly reduces the complexity of the runtime. Which appears to increase runtime performance.
-        mgmt = ems
-        mgmt.refresh
-        mgmt.reload
+        ems.refresh
+        ems.reload
 
-        assert_ems_counts(mgmt)
-        assert_specific_vm(mgmt)
-        assert_specific_resource_group(mgmt, '29b1dd25de2d40b5ae5bd5f719f30db8', 'camc-test')
-        assert_specific_security_group(mgmt, 'r014-e4be0c69-6df6-4464-a9bc-384e4179ea1b', 'backup-deglazed-bagful-deflation')
-        assert_specific_cloud_volume_type(mgmt, 'general-purpose', 'tiered')
-        assert_specific_cloud_subnet(mgmt, '0757-ef523a2f-5356-42ff-8a78-9325509465b9', 'r014-0fa2acc6-2a41-4f2b-9c89-bcea07cdcbc3', 'us-east-1')
-        assert_vm_labels(mgmt, '0777_f73e8687-3813-465f-99df-ba6e4ee8f289', 4)
+        assert_ems_counts
+        assert_specific_vm
+        assert_specific_resource_group
+        assert_specific_security_group
+        assert_specific_cloud_volume_type
+        assert_specific_cloud_subnet
+        assert_vm_labels
       end
     end
 
@@ -32,7 +30,7 @@ describe ManageIQ::Providers::IbmCloud::VPC::CloudManager::Refresher, :vcr => {:
   # Test that the refresh has persisted the same number of items as expected from the Cloud.
   # @param mgmt [VPC] The VPC EMS.
   # @return [void]
-  def assert_ems_counts(mgmt)
+  def assert_ems_counts
     # Cloud Manager
     cloud_manager = {
       :availability_zones => 3,
@@ -41,7 +39,7 @@ describe ManageIQ::Providers::IbmCloud::VPC::CloudManager::Refresher, :vcr => {:
       :resource_groups    => 3,
       :vms                => 6,
     }.freeze
-    check_counts(mgmt, cloud_manager)
+    check_counts(ems, cloud_manager)
 
     # Network Manager
     network_manager = {
@@ -50,14 +48,14 @@ describe ManageIQ::Providers::IbmCloud::VPC::CloudManager::Refresher, :vcr => {:
       :floating_ips    => 4,
       :security_groups => 2,
     }.freeze
-    check_counts(mgmt, network_manager)
+    check_counts(ems, network_manager)
 
     # Storage Manager
     storage_manger = {
       :cloud_volume_types => 4,
       :cloud_volumes      => 15,
     }
-    check_counts(mgmt, storage_manger)
+    check_counts(ems, storage_manger)
   end
 
   # Test a resource_group record is properly persisted.
@@ -65,17 +63,18 @@ describe ManageIQ::Providers::IbmCloud::VPC::CloudManager::Refresher, :vcr => {:
   # @param ems_ref [String] Value used by the Cloud as a ID.
   # @param name [String] The expected value of the name attribute.
   # @return [void]
-  def assert_specific_resource_group(mgmt, ems_ref, name)
-    resource = check_resource_fetch(mgmt, :resource_groups, ems_ref)
+  def assert_specific_resource_group
+    ems_ref = '29b1dd25de2d40b5ae5bd5f719f30db8'
+    resource = check_resource_fetch(ems, :resource_groups, ems_ref)
     class_type = 'ManageIQ::Providers::IbmCloud::VPC::CloudManager::ResourceGroup'
-    check_attribute_values(resource, ems_ref, class_type, name)
+    check_attribute_values(resource, ems_ref, class_type, 'camc-test')
   end
 
   # Test a specific VMs's configuration.
   # @param mgmt [VPC] The VPC EMS.
   # @return [void]
-  def assert_specific_vm(mgmt)
-    vm = check_resource_fetch(mgmt, :vms, '0777_249ba858-a4eb-4f2c-ba6c-72254a781d0d')
+  def assert_specific_vm
+    vm = check_resource_fetch(ems, :vms, '0777_249ba858-a4eb-4f2c-ba6c-72254a781d0d')
 
     check_count(vm, :ipaddresses, 1)
     expect(vm.availability_zone.name).to eq('us-east-3')
@@ -105,9 +104,10 @@ describe ManageIQ::Providers::IbmCloud::VPC::CloudManager::Refresher, :vcr => {:
   # @param vm_ref [String] A VM uuid with labels attached to it.
   # @param count [String] The expected number of labels with associated vm_ref VM.
   # @return [void]
-  def assert_vm_labels(mgmt, vm_ref, count)
-    vm = check_resource_fetch(mgmt, :vms, vm_ref)
-    check_count(vm, :labels, count)
+  def assert_vm_labels
+    ems_ref = '0777_f73e8687-3813-465f-99df-ba6e4ee8f289'
+    vm = check_resource_fetch(ems, :vms, ems_ref)
+    check_count(vm, :labels, 4)
   end
 
   # Test a security_group record is properly persisted.
@@ -115,20 +115,22 @@ describe ManageIQ::Providers::IbmCloud::VPC::CloudManager::Refresher, :vcr => {:
   # @param ems_ref [String] Value used by the Cloud as a ID.
   # @param name [String] The expected value of the name attribute.
   # @return [void]
-  def assert_specific_security_group(mgmt, ems_ref, name)
-    resource = check_resource_fetch(mgmt, :security_groups, ems_ref)
+  def assert_specific_security_group
+    ems_ref = 'r014-e4be0c69-6df6-4464-a9bc-384e4179ea1b'
+    resource = check_resource_fetch(ems, :security_groups, ems_ref)
     class_type = 'ManageIQ::Providers::IbmCloud::VPC::NetworkManager::SecurityGroup'
-    check_attribute_values(resource, ems_ref, class_type, name)
+    check_attribute_values(resource, ems_ref, class_type, 'backup-deglazed-bagful-deflation')
   end
 
   # Test a cloud_volume_type record is properly persisted.
   # @param mgmt [VPC] The VPC EMS.
   # @param ems_ref [String] Value used by the Cloud as a ID.
   # @param description [String] The expected value of the description attribute.
-  def assert_specific_cloud_volume_type(mgmt, ems_ref, description)
-    resource = check_resource_fetch(mgmt, :cloud_volume_types, ems_ref)
+  def assert_specific_cloud_volume_type
+    ems_ref = 'general-purpose'
+    resource = check_resource_fetch(ems, :cloud_volume_types, ems_ref)
     class_type = 'ManageIQ::Providers::IbmCloud::VPC::StorageManager::CloudVolumeType'
-    check_attribute_values(resource, ems_ref, class_type, ems_ref, {:description => description})
+    check_attribute_values(resource, ems_ref, class_type, ems_ref, {:description => 'tiered'})
   end
 
   # Test the components of a cloud subnet.
@@ -137,15 +139,19 @@ describe ManageIQ::Providers::IbmCloud::VPC::CloudManager::Refresher, :vcr => {:
   # @param network_ref [String] The associated VPC uuid.
   # @param zone_ref [String] The name of the zone the subnet is attached to.
   # @return [void]
-  def assert_specific_cloud_subnet(mgmt, ems_ref, network_ref, zone_ref)
-    cloud_subnet = check_resource_fetch(mgmt, :cloud_subnets, ems_ref)
+  def assert_specific_cloud_subnet
+    ems_ref = '0757-ef523a2f-5356-42ff-8a78-9325509465b9'
+    network_ref = 'r014-0fa2acc6-2a41-4f2b-9c89-bcea07cdcbc3'
+    zone_ref = 'us-east-1'
+
+    cloud_subnet = check_resource_fetch(ems, :cloud_subnets, ems_ref)
 
     # Test cloud_network relationship.
-    cloud_network = check_resource_fetch(mgmt, :cloud_networks, network_ref)
+    cloud_network = check_resource_fetch(ems, :cloud_networks, network_ref)
     check_relationship(cloud_subnet, :cloud_network_id, cloud_network)
 
     # Test availability_zone relationship.
-    availability_zone = check_resource_fetch(mgmt, :availability_zones, zone_ref)
+    availability_zone = check_resource_fetch(ems, :availability_zones, zone_ref)
     check_relationship(cloud_subnet, :availability_zone_id, availability_zone)
 
     # Test remaining fields.
