@@ -152,32 +152,52 @@ module ManageIQ::Providers::IbmCloud::PowerVirtualServers::CloudManager::Provisi
     ids = Array(clone_task_ref)
 
     source.with_provider_connection(:service => "PCloudPVMInstancesApi") do |api|
-      statuses = ids.map do |id|
+      statuses = ids.each_with_object(Hash.new { |h, k| h[k] = [] }) do |id, result|
         instance = api.pcloud_pvminstances_get(cloud_instance_id, id)
-        [id, instance.status, instance.processors.to_f, instance.memory.to_f]
+
+        result[instance.status] << {
+          :id       => id,
+          :instance => instance
+        }
+
+        if instance.status == 'ACTIVE' && instance.processors.to_f > 0 && instance.memory.to_f > 0
+          result['ACTIVE_READY'] << {
+            :id       => id,
+            :instance => instance
+          }
+        end
       rescue IbmCloudPower::ApiError => e
         # The instance may not be queryable immediately after creation (transient
         # 500s are common in the first few seconds).  Treat it as still building.
         _log.warn("Transient error polling instance #{id}: #{e.message}. Will retry.")
-        [id, 'BUILD', 0, 0]
+        result['BUILD'] << {:id => id}
       end
 
-      errored = statuses.select { |_, state, _, _| state == 'ERROR' }
-      raise MiqException::MiqProvisionError, _("An error occurred while provisioning the instance.") if errored.any?
+      if statuses['ERROR'].any?
+        raise MiqException::MiqProvisionError, _("An error occurred while provisioning the instance.")
+      end
 
-      building = statuses.select { |_, state, _, _| state == 'BUILD' }
-      active   = statuses.select { |_, state, cpus, mem| state == 'ACTIVE' && cpus > 0 && mem > 0 }
-      all_done = building.empty? && active.length == ids.length
+      if statuses['BUILD'].any?
+        return false, "#{statuses['BUILD'].length} of #{ids.length} instance(s) still provisioning."
+      end
+
+      all_done = statuses['ACTIVE_READY'].length == ids.length
 
       phase_context[:cloud_api_completion_time] = Time.zone.now.utc if all_done
 
-      status = if building.any?
-                 "#{building.length} of #{ids.length} instance(s) still provisioning."
-               elsif all_done
-                 "All #{ids.length} instance(s) provisioned and active."
-               else
-                 "#{active.length} of #{ids.length} instance(s) active, waiting for full description."
-               end
+      # Store active instance metadata for attach_affinity_volumes to consume
+      if all_done && options[:new_volumes].present?
+        phase_context[:active_instances] = statuses['ACTIVE_READY'].map do |entry|
+          {:id => entry[:id], :server_name => entry[:instance].server_name}
+        end
+      end
+
+      status =
+        if all_done
+          "All #{ids.length} instance(s) provisioned and active."
+        else
+          "#{statuses['ACTIVE_READY'].length} of #{ids.length} instance(s) active, waiting for full description."
+        end
 
       return all_done, status
     end
@@ -191,7 +211,7 @@ module ManageIQ::Providers::IbmCloud::PowerVirtualServers::CloudManager::Provisi
     end
   end
 
-  def create_and_attach_affinity_volumes(vm_ems_ref, vm_instance_name)
+  def create_and_attach_affinity_volumes(vm_ems_ref, vm_instance_name, instance_index)
     new_volumes = options[:new_volumes] || []
     return if new_volumes.empty?
 
@@ -199,7 +219,15 @@ module ManageIQ::Providers::IbmCloud::PowerVirtualServers::CloudManager::Provisi
 
     source.with_provider_connection(:service => "PCloudVolumesApi") do |api|
       new_volumes.each do |new_volume|
+        vol_name =
+          if get_option(:replicants).to_i > 1
+            "#{new_volume[:name]}#{'%03d' % instance_index}"
+          else
+            new_volume[:name]
+          end
+
         volume_params = new_volume.merge(
+          :name                  => vol_name,
           :affinity_policy       => "affinity",
           :affinity_pvm_instance => vm_instance_name
         )

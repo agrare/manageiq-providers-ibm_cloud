@@ -38,34 +38,37 @@ module ManageIQ::Providers::IbmCloud::PowerVirtualServers::CloudManager::Provisi
         EmsRefresh.queue_refresh(manager)
       end
 
-      signal :poll_destination_in_vmdb
+      if options[:new_volumes].present?
+        signal :attach_affinity_volumes
+      else
+        signal :poll_destination_in_vmdb
+      end
     else
       requeue_phase
     end
   end
 
-  def prepare_volumes_and_networks
-    new_volumes = options[:new_volumes]
-    pass = get_option(:pass)
-    phase_context[:new_volumes] = []
+  def attach_affinity_volumes
+    active_instances = phase_context.delete(:active_instances) || []
+    ids = active_instances.map { |e| e[:id] }
 
-    if new_volumes.any?
-      source.with_provider_connection(:service => "PCloudVolumesApi") do |api|
-        new_volumes.each_with_index do |new_volume, idx|
-          # Build a zero-padded 3-digit sequential name so volumes are clearly
-          # identifiable in the PowerVS console.
-          # Pattern: "<user-base><NNN>" e.g. "datavol001", "datavol002"
-          # The counter combines vol-index and pass to stay unique across
-          # multiple VMs in the same provisioning request.
-          seq = "%03d" % (((pass.to_i - 1) * new_volumes.size) + idx + 1)
-          volume_payload = new_volume.merge(:name => "#{new_volume[:name]}#{seq}")
-          created_volume = api.pcloud_cloudinstances_volumes_post(
-            cloud_instance_id, IbmCloudPower::CreateDataVolume.new(volume_payload)
-          )
-          phase_context[:new_volumes] << created_volume.volume_id
-        end
-      end
+    active_instances.each_with_index do |entry, idx|
+      create_and_attach_affinity_volumes(entry[:id], entry[:server_name], idx + 1)
     end
+
+    message = "Affinity volumes created and attached for #{ids.length} instance(s)."
+    _log.info(message)
+    update_and_notify_parent(:message => message)
+
+    signal :poll_destination_in_vmdb
+  end
+
+  def prepare_volumes_and_networks
+    # New volumes require affinity to the VM's boot volume storage pool,
+    # which is only known after the VM is created and ACTIVE.
+    # They are created and attached in the attach_affinity_volumes state
+    # after all instances reach ACTIVE_READY.
+    phase_context[:new_volumes] = []
 
     phase_context[:new_networks] = []
 
