@@ -2,51 +2,64 @@ dal:
   :name: dal
   :description: Dallas, TX United States
   :hostname: dal.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: us-south
 eu-de:
   :name: eu-de
   :description: Frankfurt, Germany
   :hostname: eu-de.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: eu-de
 lon:
   :name: lon
   :description: London, United Kingdom
   :hostname: lon.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: eu-gb
 mad:
   :name: mad
   :description: Madrid, Spain
   :hostname: mad.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: eu-es
 mon:
   :name: mon
   :description: Montreal, Canada
   :hostname: mon.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: ca-mon
 osa:
   :name: osa
   :description: Osaka, Japan
   :hostname: osa.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: jp-osa
 sao:
   :name: sao
   :description: Sao Paulo, Brazil
   :hostname: sao.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: br-sao
 syd:
   :name: syd
   :description: Sydney, Australia
   :hostname: syd.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: au-syd
 tok:
   :name: tok
   :description: Tokyo, Japan
   :hostname: tok.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: jp-tok
 tor:
   :name: tor
   :description: Toronto, Canada
   :hostname: tor.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: ca-tor
 us-east:
   :name: us-east
   :description: Washington DC, United States
   :hostname: us-east.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: us-east
 us-south:
   :name: us-south
   :description: Dallas, TX United States
   :hostname: us-south.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: us-south
 wdc:
   :name: wdc
   :description: Washington DC, United States
   :hostname: wdc.power-iaas.cloud.ibm.com
+  :monitoring_endpoint: us-east

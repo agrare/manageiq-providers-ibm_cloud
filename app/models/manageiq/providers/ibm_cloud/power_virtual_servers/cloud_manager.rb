@@ -36,9 +36,16 @@ class ManageIQ::Providers::IbmCloud::PowerVirtualServers::CloudManager < ManageI
 
   supports :catalog
   supports :create
+  supports :metrics do
+    _("No metrics endpoint has been added") if metrics_endpoint.nil?
+  end
   supports :native_console
   supports :provisioning
   supports_not :volume_availability_zones
+
+  def metrics_endpoint
+    endpoints.find_by(:role => "metrics")
+  end
 
   def console_url
     "https://cloud.ibm.com/services/power-iaas/#{CGI.escape(pcloud_crn.values.join(":"))}"

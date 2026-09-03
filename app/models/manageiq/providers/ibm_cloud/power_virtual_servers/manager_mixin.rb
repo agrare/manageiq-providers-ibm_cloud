@@ -18,11 +18,12 @@ module ManageIQ::Providers::IbmCloud::PowerVirtualServers::ManagerMixin
     require "ibm_cloud_power"
     power_api_client = IbmCloudPower::ApiClient.new
 
-    power_api_client.config.api_key = auth_key
-    power_api_client.config.scheme  = "https"
-    power_api_client.config.host    = api_endpoint_url(location)
-    power_api_client.config.logger  = $ibm_cloud_log
+    power_api_client.config.api_key   = auth_key
+    power_api_client.config.scheme    = "https"
+    power_api_client.config.host      = api_endpoint_url(location)
+    power_api_client.config.logger    = $ibm_cloud_log
     power_api_client.config.debugging = Settings.log.level_ibm_cloud == "debug"
+
     power_api_client.default_headers["Crn"]           = power_iaas_service["crn"]
     power_api_client.default_headers["Authorization"] = "#{token.token_type} #{token.access_token}"
 
@@ -128,6 +129,46 @@ module ManageIQ::Providers::IbmCloud::PowerVirtualServers::ManagerMixin
                     }
                   ]
                 },
+                {
+                  :component => 'tab-item',
+                  :id        => 'metrics-tab',
+                  :name      => 'metrics-tab',
+                  :title     => _('Metrics'),
+                  :fields    => [
+                    {
+                      :component    => 'protocol-selector',
+                      :id           => 'metrics_selection',
+                      :name         => 'metrics_selection',
+                      :skipSubmit   => true,
+                      :initialValue => 'none',
+                      :label        => _('Type'),
+                      :options      => [
+                        {
+                          :label => _('Disabled'),
+                          :value => 'none',
+                        },
+                        {
+                          :label => _('Enabled'),
+                          :value => 'enable_metrics',
+                          :pivot => 'endpoints.metrics.options.monitoring_instance_id',
+                        },
+                      ],
+                    },
+                    {
+                      :component              => 'password-field',
+                      :id                     => 'endpoints.metrics.options.monitoring_instance_id',
+                      :name                   => 'endpoints.metrics.options.monitoring_instance_id',
+                      :label                  => _('IBM Cloud Monitoring Instance GUID'),
+                      :helperText             => _('Found under Observability > Monitoring in the IBM Cloud console. The Monitoring instance must be in the same region as this PowerVS workspace and configured to receive IBM Power Virtual Server metrics.'),
+                      :validationDependencies => %w[type zone_id metrics_selection],
+                      :isRequired             => true,
+                      :condition              => {
+                        :when => 'metrics_selection',
+                        :is   => 'enable_metrics',
+                      },
+                    },
+                  ]
+                },
               ]
             ]
           }
@@ -137,8 +178,8 @@ module ManageIQ::Providers::IbmCloud::PowerVirtualServers::ManagerMixin
 
     def verify_credentials(args)
       pcloud_guid = args["uid_ems"]
-      auth_key = args.dig("authentications", "default", "auth_key")
-      auth_key = ManageIQ::Password.try_decrypt(auth_key)
+      auth_key   = args.dig("authentications", "default", "auth_key")
+      auth_key   = ManageIQ::Password.try_decrypt(auth_key)
       auth_key ||= find(args["id"]).authentication_token('default')
 
       !!raw_connect(auth_key, pcloud_guid)

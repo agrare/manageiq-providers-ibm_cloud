@@ -3,6 +3,18 @@ FactoryBot.define do
           :aliases => ["manageiq/providers/ibm_cloud_power_virtual_servers/cloud_manager"],
           :class   => "ManageIQ::Providers::IbmCloud::PowerVirtualServers::CloudManager",
           :parent  => :ems_cloud
+
+  factory :ems_ibm_cloud_power_virtual_servers_cloud_with_metrics, :parent => :ems_ibm_cloud_power_virtual_servers_cloud do
+    provider_region { "us-south" }
+
+    after(:create) do |ems|
+      ems.endpoints << FactoryBot.create(
+        :endpoint,
+        :role    => "metrics",
+        :options => {"monitoring_instance_id" => "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}
+      )
+    end
+  end
 end
 
 FactoryBot.define do

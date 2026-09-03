@@ -2,6 +2,7 @@ class ManageIQ::Providers::IbmCloud::PowerVirtualServers::CloudManager::Vm < Man
   include Operations
 
   supports :capture
+  supports :metrics
   supports :terminate
   supports :reboot_guest do
     _("The VM is not powered on") unless current_state == "on"

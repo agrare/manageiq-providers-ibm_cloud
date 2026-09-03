@@ -104,6 +104,7 @@
       :ems_metrics_collector_worker:
         :ems_metrics_collector_worker_vpc: {}
         :ems_metrics_collector_worker_ibm_cloud_iks: {}
+        :ems_metrics_collector_worker_power_virtual_servers: {}
       :ems_refresh_worker:
         :ems_refresh_worker_ibm_cloud_power_virtual_servers: {}
         :ems_refresh_worker_ibm_cloud_vpc: {}
