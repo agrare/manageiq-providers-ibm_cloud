@@ -6,15 +6,20 @@ describe ManageIQ::Providers::IbmCloud::PowerVirtualServers::CloudManager::Metri
     subject { described_class.new(vm) }
 
     it "collects metrics and stores datapoints" do
-      fake_response = double(:body => JSON.generate(
-        "data" => [
-          {"t" => 1_700_000_000, "d" => [50.0, 60.0, 1024.0, 512.0, 2048.0, 1024.0]},
-          {"t" => 1_700_000_060, "d" => [55.0, 65.0, 2048.0, 1024.0, 4096.0, 2048.0]},
-        ]
-      ))
+      fake_response = instance_double(
+        Faraday::Response,
+        :success? => true,
+        :body     => JSON.generate(
+          "data" => [
+            {"t" => 1_700_000_000, "d" => [50.0, 60.0, 1024.0, 512.0, 2048.0, 1024.0]},
+            {"t" => 1_700_000_060, "d" => [55.0, 65.0, 2048.0, 1024.0, 4096.0, 2048.0]},
+          ]
+        )
+      )
 
+      fake_connection = instance_double(Faraday::Connection, :post => fake_response)
       allow(subject).to receive(:iam_access_token).and_return("fake-token")
-      allow(RestClient::Request).to receive(:execute).and_return(fake_response)
+      allow(Faraday).to receive(:new).and_return(fake_connection)
 
       counters, counter_values = subject.perf_collect_metrics("realtime")
 
